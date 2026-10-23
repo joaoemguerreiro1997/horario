@@ -10,15 +10,22 @@ module.exports = async (req, res) => {
   if (!image) return res.status(400).json({ error: 'Sem imagem' });
   const prompt = `Lê esta imagem de um horário de trabalho. Procura as linhas ou colunas da pessoa chamada "${String(name || '').slice(0, 80) || '(nome desconhecido: usa o nome que parecer mais provável)'}". Devolve APENAS JSON: {"nome":string,"turnos":[{"d":"YYYY-MM-DD","p":"nome do posto","s":"HH:MM","e":"HH:MM","c":["nome de um colega"]}]}. Em "c" põe os nomes dos OUTROS colegas escalados nesse mesmo dia e no mesmo posto (sem incluir a pessoa); se não houver, []. Se o mês ou ano não estiverem visíveis, usa ${String(month || '').slice(0, 7)}. Ignora folgas e dias sem turno.`;
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-    body: JSON.stringify({
-      contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: image } }, { text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0 }
-    })
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const body = JSON.stringify({
+    contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: image } }, { text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0 }
   });
-  const j = await r.json();
+  let r, j;
+  for (let i = 0; i < 3; i++) {
+    r = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      body
+    });
+    j = await r.json();
+    if (r.ok || ![429, 503].includes(r.status)) break;
+    await new Promise(ok => setTimeout(ok, 3000 * (i + 1)));
+  }
   if (!r.ok) return res.status(502).json({ error: (j.error && j.error.message) || 'Erro na leitura' });
   const t = (((j.candidates || [])[0] || {}).content || { parts: [] }).parts.map(p => p.text || '').join('');
   try { res.status(200).json(JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1))); }
