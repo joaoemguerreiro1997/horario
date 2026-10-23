@@ -169,7 +169,7 @@ async function readImg(){
     const img=await shrink(f);
     const tk=(await sb.auth.getSession()).data.session.access_token;
     const resp=await fetch('/api/read-schedule',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tk},body:JSON.stringify({image:img,name:S.name,month:ym(new Date())})});
-    const r=await resp.json();if(!resp.ok)throw new Error(r.error||resp.status);
+    const raw=await resp.text();let r;try{r=JSON.parse(raw)}catch(e){throw new Error('o servidor respondeu '+resp.status+': '+raw.slice(0,100))}if(!resp.ok)throw new Error(r.error||resp.status);
     const t=(r.turnos||[]).filter(x=>x.d&&x.s&&x.e).map(x=>Object.assign({},x,{c:Array.isArray(x.c)?x.c.map(String):[]}));
     if(!t.length){m.textContent='Não encontrei turnos. Confirma o teu nome em Definições.';return}
     pending={nome:r.nome,turnos:t};render();
