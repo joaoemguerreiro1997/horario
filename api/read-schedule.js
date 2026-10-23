@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
   const { image, name, month } = req.body || {};
   if (!image) return res.status(400).json({ error: 'Sem imagem' });
   const prompt = `Lê esta imagem de um horário de trabalho. Procura as linhas ou colunas da pessoa chamada "${String(name || '').slice(0, 80) || '(nome desconhecido: usa o nome que parecer mais provável)'}". Devolve APENAS JSON: {"nome":string,"turnos":[{"d":"YYYY-MM-DD","p":"nome do posto","s":"HH:MM","e":"HH:MM","c":["nome de um colega"]}]}. Em "c" põe os nomes dos OUTROS colegas escalados nesse mesmo dia e no mesmo posto (sem incluir a pessoa); se não houver, []. Se o mês ou ano não estiverem visíveis, usa ${String(month || '').slice(0, 7)}. Ignora folgas e dias sem turno.`;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
